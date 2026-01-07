@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, User, Sparkles, RefreshCcw } from 'lucide-react';
-import { getAnimeRecommendations } from '../geminiService';
-import { ChatMessage } from '../types';
+import { getAnimeRecommendations } from '../src/geminiService';
+import { ChatMessage } from '../src/types';
 
 const AIAssistant: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([

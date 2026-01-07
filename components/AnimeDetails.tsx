@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, PlayCircle, Info, BrainCircuit, Youtube, Zap, Search, ShieldCheck, ExternalLink, Activity, MonitorPlay, Loader2 } from 'lucide-react';
-import { Anime } from '../types';
-import { analyzeAnime, getSmartLink } from '../geminiService';
-import { generateAni4uLink, getAnimeVietSubUrl, getTrailerUrl } from '../mappingService';
+import { Anime } from '../src/types';
+import { analyzeAnime, getSmartLink } from '../src/geminiService';
+import { generateAni4uLink, getAnimeVietSubUrl, getTrailerUrl } from '../src/mappingService';
 
 interface Props {
   anime: Anime | null;

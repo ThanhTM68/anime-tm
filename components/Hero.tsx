@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Zap, X, Loader2 } from 'lucide-react';
-import { Anime } from '../types';
+import { Anime } from '../src/types';
 
 interface HeroProps {
   onSearch: (query: string) => void;
