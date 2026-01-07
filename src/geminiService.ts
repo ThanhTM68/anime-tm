@@ -1,7 +1,25 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, SchemaType } from "@google/genai";
 import { Anime } from "./types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// 1. Lấy API Key chuẩn Vite
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+// 2. Khởi tạo an toàn (Tránh lỗi màn hình trắng nếu thiếu Key)
+let ai: GoogleGenAI | null = null;
+if (apiKey) {
+    try {
+        ai = new GoogleGenAI({ apiKey });
+    } catch (e) {
+        console.error("Lỗi khởi tạo AI:", e);
+    }
+} else {
+    console.warn("Chưa có API Key, các tính năng AI sẽ bị tắt.");
+}
+
+// Helper: Làm sạch chuỗi JSON từ AI (vì AI hay trả về dính markdown ```json)
+const cleanJsonString = (str: string) => {
+    return str.replace(/```json|```/g, "").trim();
+};
 
 const mapJikanToAnime = (item: any): Anime => ({
     id: item.mal_id,
@@ -32,9 +50,11 @@ export async function getSmartLink(
     anime: Anime,
     episode?: number
 ): Promise<any> {
+    if (!ai) return null; // Nếu chưa có AI thì bỏ qua luôn
+
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-2.5-flash", // Dùng bản 1.5 Flash cho nhanh và ổn định
             contents: `Tạo link cho: ${anime.title} (English: ${
                 anime.title_english || "N/A"
             }), Episode: ${episode || "Full"}`,
@@ -42,17 +62,21 @@ export async function getSmartLink(
                 systemInstruction: LINK_BUILDER_SYSTEM_PROMPT,
                 responseMimeType: "application/json",
                 responseSchema: {
-                    type: Type.OBJECT,
+                    type: SchemaType.OBJECT,
                     properties: {
-                        strategy: { type: Type.STRING },
-                        url: { type: Type.STRING },
-                        confidence: { type: Type.STRING },
+                        strategy: { type: SchemaType.STRING },
+                        url: { type: SchemaType.STRING },
+                        confidence: { type: SchemaType.STRING },
                     },
                 },
             },
         });
-        return JSON.parse(response.text);
+
+        const text = response.text;
+        if (!text) return null;
+        return JSON.parse(cleanJsonString(text));
     } catch (error) {
+        console.error("Lỗi getSmartLink:", error);
         return null;
     }
 }
@@ -111,13 +135,15 @@ export async function fetchTopAnime(
 }
 
 export async function analyzeAnime(animeTitle: string): Promise<string> {
+    if (!ai) return "Chưa kết nối API Key.";
+
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-3-pro-preview",
+            model: "gemini-1.5-flash", // Dùng bản Flash cho nhanh
             contents: `Phân tích chuyên sâu (tiếng Việt): ${animeTitle}`,
             config: {
                 systemInstruction:
-                    "Bạn là Sensei AI, phân tích anime với góc nhìn nghệ thuật và triết lý. Trả lời ngắn gọn, súc tích.",
+                    "Bạn là Sensei AI, phân tích anime với góc nhìn nghệ thuật và triết lý. Trả lời ngắn gọn, súc tích dưới 100 từ.",
             },
         });
         return response.text || "Dữ liệu đang được phân tích...";
@@ -127,9 +153,11 @@ export async function analyzeAnime(animeTitle: string): Promise<string> {
 }
 
 export async function getAnimeRecommendations(prompt: string): Promise<string> {
+    if (!ai) return "Chưa kết nối API Key.";
+
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
+            model: "gemini-1.5-flash",
             contents: prompt,
             config: {
                 systemInstruction:
