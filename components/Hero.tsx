@@ -72,34 +72,40 @@ const Hero: React.FC<HeroProps> = ({ onSearch, searchResults, isSearching, onSel
         </h1>
         
         <div className="relative group max-w-lg mx-auto" ref={dropdownRef}>
-          {/* Main Input Box - Styled to match screenshot input feel */}
-          <div className="relative flex items-center bg-[#0d1117] rounded-lg border border-white/5 overflow-hidden shadow-2xl transition-all duration-300 group-hover:border-white/20">
-            <div className="pl-5 pr-3 text-slate-500">
-              <Search size={20} />
+          {/* Main Input Box - Cyberpunk Neon Glow refinement */}
+          <div className="relative flex items-center bg-[#0d1117]/90 backdrop-blur-xl rounded-lg border border-white/10 overflow-hidden shadow-2xl transition-all duration-500 focus-within:border-pink-500 focus-within:shadow-[0_0_30px_rgba(236,72,153,0.4)] focus-within:scale-[1.02] group-hover:border-white/20">
+            {/* Animated focus border (neon line) */}
+            <div className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-pink-600 via-purple-600 to-pink-600 w-0 transition-all duration-700 focus-within:w-full opacity-0 focus-within:opacity-100" />
+            
+            <div className="pl-5 pr-3 text-slate-500 transition-colors focus-within:text-pink-500">
+              <Search size={20} className="transition-transform duration-500 group-focus-within:rotate-90" />
             </div>
+            
             <input 
               type="text" 
               placeholder="Nhập tên anime..."
-              className="bg-transparent border-none outline-none text-white w-full py-4 text-base font-medium placeholder:text-slate-600 focus:ring-0"
+              className="bg-transparent border-none outline-none text-white w-full py-5 text-base font-medium placeholder:text-slate-600 focus:ring-0"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => query.length >= 2 && setShowDropdown(true)}
             />
+            
             {isSearching && (
               <div className="mr-3">
                 <Loader2 className="animate-spin text-pink-500" size={18} />
               </div>
             )}
+            
             {query && (
-              <button onClick={handleClear} className="p-2 hover:bg-white/5 rounded-full transition-colors mr-2">
-                <X size={18} className="text-slate-600" />
+              <button onClick={handleClear} className="p-2 hover:bg-white/10 rounded-full transition-colors mr-2 group/clear">
+                <X size={18} className="text-slate-600 group-hover/clear:text-pink-500 transition-colors" />
               </button>
             )}
           </div>
 
-          {/* Floating Dropdown - MATCHES SCREENSHOT EXACTLY */}
+          {/* Floating Dropdown */}
           {showDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-0.5 bg-[#1a2329] rounded-b-lg shadow-[0_25px_60px_rgba(0,0,0,0.9)] overflow-hidden z-[110] animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a2329]/95 backdrop-blur-2xl rounded-lg shadow-[0_25px_80px_rgba(0,0,0,0.9)] border border-white/10 overflow-hidden z-[110] animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="max-h-[380px] overflow-y-auto custom-scrollbar">
                 {searchResults.length > 0 ? (
                   searchResults.map((anime) => (
@@ -109,13 +115,13 @@ const Hero: React.FC<HeroProps> = ({ onSearch, searchResults, isSearching, onSel
                         onSelect(anime);
                         setShowDropdown(false);
                       }}
-                      className="flex items-start gap-3 p-2.5 hover:bg-[#252f35] border-b border-white/[0.02] cursor-pointer transition-colors group/item"
+                      className="flex items-start gap-3 p-3 hover:bg-[#252f35] border-b border-white/[0.05] cursor-pointer transition-all group/item"
                     >
                       {/* Thumbnail Box */}
-                      <div className="w-[50px] h-[72px] bg-black shrink-0 rounded-sm overflow-hidden border border-white/5">
+                      <div className="w-[50px] h-[72px] bg-black shrink-0 rounded-sm overflow-hidden border border-white/10 group-hover/item:border-pink-500/50 transition-colors shadow-lg">
                         <img 
                           src={anime.image} 
-                          className="w-full h-full object-cover opacity-90 group-hover/item:opacity-100 transition-opacity" 
+                          className="w-full h-full object-cover opacity-80 group-hover/item:opacity-100 group-hover/item:scale-110 transition-all duration-500" 
                           alt="" 
                         />
                       </div>
@@ -125,25 +131,32 @@ const Hero: React.FC<HeroProps> = ({ onSearch, searchResults, isSearching, onSel
                         <h4 className="text-[#a5b4bc] font-bold text-[13px] leading-tight line-clamp-2 group-hover/item:text-white transition-colors">
                           {anime.title}
                         </h4>
-                        <span className="text-[#64748b] text-[10px] font-bold mt-1.5 uppercase tracking-wider">
-                          Full VietSub
-                        </span>
+                        <div className="flex items-center gap-2 mt-2">
+                           <span className="text-[9px] bg-pink-500/10 text-pink-500 px-2 py-0.5 rounded-sm font-black uppercase tracking-widest border border-pink-500/20 group-hover/item:bg-pink-600 group-hover/item:text-white transition-all">
+                            Full VietSub
+                          </span>
+                          <span className="text-slate-600 text-[9px] font-black uppercase tracking-widest">
+                            {anime.rating} ★
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))
                 ) : !isSearching && (
-                  <div className="p-12 text-center text-slate-600 font-bold uppercase tracking-widest text-[10px]">
+                  <div className="p-12 text-center text-slate-600 font-black uppercase tracking-[1em] text-[10px] italic">
                     No dimensional signals found
                   </div>
                 )}
               </div>
 
-              {/* Action Button - Red style from screenshot */}
+              {/* Action Button */}
               <button 
                 onClick={() => onSearch(query)}
-                className="w-full bg-[#ff4b40] hover:bg-[#e03a30] text-white py-4 font-black text-sm tracking-[0.2em] transition-colors uppercase shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] active:scale-[0.99]"
+                className="w-full bg-[#ff4b40] hover:bg-[#e03a30] text-white py-4 font-black text-sm tracking-[0.3em] transition-all uppercase shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] active:scale-[0.98] group/btn"
               >
-                Enter để tìm kiếm
+                <span className="flex items-center justify-center gap-3">
+                  NHẤN ENTER ĐỂ TÌM KIẾM <Zap size={14} className="group-hover/btn:animate-bounce" />
+                </span>
               </button>
             </div>
           )}

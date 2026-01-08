@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Hero from "../components/Hero";
 import TrendingSection from "../components/TrendingSection";
 import AIAssistant from "../components/AIAssistant";
@@ -7,98 +7,164 @@ import Particles from "../components/Particles";
 import MusicPlayer from "../components/MusicPlayer";
 import AnimeCard from "../components/AnimeCard";
 import Pagination from "../components/Pagination";
-import GenresMegamenu from "../components/GenresMegamenu";
+import GenresMegamenu, { GENRE_MAP } from "../components/GenresMegamenu";
+import Leaderboard from "../components/Leaderboard";
 import { Anime } from "./types";
 import {
     fetchAnimeFromJikan,
     fetchTopAnime,
     fetchCurrentSeason,
-    fetchRecentEpisodes,
+    fetchAnimeWithFilters,
+    fetchRandomBackground,
 } from "./geminiService";
 import {
     Heart,
-    History,
-    BarChart2,
     Loader2,
-    Sparkles,
-    Compass,
     ChevronDown,
-    FilterX,
-    Hash,
+    Zap,
+    Home,
+    ChevronRight,
+    LayoutGrid,
+    Sparkles,
+    Trash2,
+    Calendar,
 } from "lucide-react";
 
-type View = "home" | "library" | "rankings";
+type View = "home" | "genre-view" | "latest" | "rankings" | "favorites";
 
 const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<View>("home");
     const [selectedAnime, setSelectedAnime] = useState<Anime | null>(null);
+    const [isScrolled, setIsScrolled] = useState(false);
 
     const [trendingData, setTrendingData] = useState<Anime[]>([]);
-    const [recentData, setRecentData] = useState<Anime[]>([]);
-    const [topRankings, setTopRankings] = useState<Anime[]>([]);
+    const [displayData, setDisplayData] = useState<Anime[]>([]);
     const [searchResults, setSearchResults] = useState<Anime[]>([]);
 
     const [isSearching, setIsSearching] = useState(false);
-    const [isLoadingHome, setIsLoadingHome] = useState(true);
-    const [isLoadingRankings, setIsLoadingRankings] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [paginationInfo, setPaginationInfo] = useState<any>(null);
+
     const [isGenreOpen, setIsGenreOpen] = useState(false);
-    const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+    const [selectedGenreIds, setSelectedGenreIds] = useState<number[]>([]);
+    const [currentBg, setCurrentBg] = useState<string>("");
+
+    const [favorites, setFavorites] = useState<Anime[]>(() => {
+        try {
+            const saved = localStorage.getItem("anime-tm-v3-favs");
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
 
     useEffect(() => {
-        const loadHomeData = async () => {
-            setIsLoadingHome(true);
+        localStorage.setItem("anime-tm-v3-favs", JSON.stringify(favorites));
+    }, [favorites]);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 50);
+        };
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
+    const toggleFavorite = (anime: Anime) => {
+        setFavorites((prev) => {
+            const isExist = prev.find((a) => a.mal_id === anime.mal_id);
+            if (isExist) return prev.filter((a) => a.mal_id !== anime.mal_id);
+            return [anime, ...prev];
+        });
+    };
+
+    const isFavorite = (animeId: number) =>
+        favorites.some((a) => a.mal_id === animeId);
+
+    const updateViewBackground = async () => {
+        const bg = await fetchRandomBackground();
+        setCurrentBg(bg);
+    };
+
+    useEffect(() => {
+        const initData = async () => {
+            setIsLoading(true);
             try {
-                const [trending, recent] = await Promise.all([
-                    fetchCurrentSeason(15),
-                    fetchRecentEpisodes(25),
-                ]);
-                setTrendingData(trending);
-                setRecentData(recent);
-            } catch (error) {
-                console.error("Data error:", error);
+                const top = await fetchTopAnime(20);
+                setTrendingData(top);
+                const season = await fetchCurrentSeason(1, 12);
+                if (season) setDisplayData(season.data);
+                await updateViewBackground();
+            } catch (e) {
+                console.error("Init Error:", e);
             } finally {
-                setIsLoadingHome(false);
+                setIsLoading(false);
             }
         };
-        loadHomeData();
+        initData();
     }, []);
 
     useEffect(() => {
-        if (currentView === "rankings") {
-            const loadRankings = async () => {
-                setIsLoadingRankings(true);
-                try {
-                    const [p1, p2] = await Promise.all([
-                        fetchTopAnime(25, 1),
-                        fetchTopAnime(25, 2),
-                    ]);
-                    setTopRankings([...p1, ...p2].slice(0, 40));
-                } catch (error) {
-                    console.error("Rankings error:", error);
-                } finally {
-                    setIsLoadingRankings(false);
-                }
-            };
-            loadRankings();
-        }
-    }, [currentView]);
+        if (currentView === "rankings" || currentView === "favorites") return;
 
-    const toggleGenre = (genre: string) => {
-        setSelectedGenres((prev) =>
-            prev.includes(genre)
-                ? prev.filter((g) => g !== genre)
-                : [...prev, genre]
-        );
+        const updateData = async () => {
+            setIsLoading(true);
+            try {
+                let res;
+                if (
+                    currentView === "genre-view" &&
+                    selectedGenreIds.length > 0
+                ) {
+                    res = await fetchAnimeWithFilters(
+                        selectedGenreIds,
+                        currentPage
+                    );
+                } else if (currentView === "latest") {
+                    res = await fetchCurrentSeason(currentPage, 24);
+                } else if (
+                    currentView === "home" &&
+                    selectedGenreIds.length === 0
+                ) {
+                    res = await fetchCurrentSeason(1, 12);
+                }
+
+                if (res && res.data) {
+                    setDisplayData(res.data);
+                    setPaginationInfo(res.pagination);
+                }
+            } catch (e) {
+                console.error("Data Sync Error:", e);
+            } finally {
+                setIsLoading(false);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+        };
+        updateData();
+    }, [currentView, selectedGenreIds, currentPage]);
+
+    const toggleGenre = (genreId: number) => {
+        setCurrentPage(1);
+        setSelectedGenreIds((prev) => {
+            const isExist = prev.includes(genreId);
+            const newIds = isExist
+                ? prev.filter((id) => id !== genreId)
+                : [...prev, genreId];
+            if (newIds.length > 0) {
+                setCurrentView("genre-view");
+            } else {
+                setCurrentView("home");
+            }
+            return newIds;
+        });
     };
 
-    const clearGenres = () => setSelectedGenres([]);
-
-    const filteredRecentData = useMemo(() => {
-        if (selectedGenres.length === 0) return recentData;
-        return recentData.filter((anime) =>
-            selectedGenres.every((g) => anime.genres.includes(g))
-        );
-    }, [recentData, selectedGenres]);
+    const handleClearGenres = () => {
+        setSelectedGenreIds([]);
+        setCurrentPage(1);
+        setCurrentView("home");
+        setIsGenreOpen(false);
+    };
 
     const handleSearch = useCallback(async (query: string) => {
         if (!query || query.trim().length < 2) {
@@ -110,386 +176,401 @@ const App: React.FC = () => {
             const results = await fetchAnimeFromJikan(query);
             setSearchResults(results || []);
         } catch (err) {
-            console.error("Search failed:", err);
+            console.error(err);
         } finally {
             setIsSearching(false);
         }
     }, []);
 
-    const renderView = () => {
-        switch (currentView) {
-            case "library":
-                return (
-                    <div className="pt-32 px-4 md:px-12 max-w-7xl mx-auto min-h-screen">
-                        <div className="flex flex-col gap-12">
-                            <section>
-                                <div className="flex items-center gap-4 mb-8">
-                                    <Compass
-                                        className="text-pink-500"
-                                        size={32}
-                                    />
-                                    <h2 className="text-4xl font-black uppercase tracking-tight">
-                                        Vừa khám phá
-                                    </h2>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                    {recentData.slice(0, 5).map((anime) => (
-                                        <AnimeCard
-                                            key={anime.id}
-                                            anime={anime}
-                                            onClick={setSelectedAnime}
-                                        />
-                                    ))}
-                                </div>
-                            </section>
-                            <section className="mb-20">
-                                <div className="flex items-center gap-4 mb-8">
-                                    <Heart
-                                        className="text-pink-500 fill-pink-500"
-                                        size={32}
-                                    />
-                                    <h2 className="text-4xl font-black uppercase tracking-tight">
-                                        Gợi ý yêu thích
-                                    </h2>
-                                </div>
-                                <p className="text-slate-500 font-bold italic uppercase tracking-widest text-xs">
-                                    Dimensional Link Empty...
-                                </p>
-                            </section>
-                        </div>
-                    </div>
-                );
-            case "rankings":
-                return (
-                    <div className="pt-32 px-4 md:px-12 max-w-7xl mx-auto min-h-screen">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-16">
-                            <div className="flex items-center gap-4">
-                                <BarChart2
-                                    className="text-pink-500"
-                                    size={36}
-                                />
-                                <div>
-                                    <h2 className="text-5xl font-black uppercase tracking-tighter">
-                                        BẢNG VÀNG ANIME
-                                    </h2>
-                                    <p className="text-slate-500 text-[10px] font-black tracking-[0.3em] uppercase mt-1">
-                                        Dữ liệu theo MyAnimeList Network
-                                    </p>
-                                </div>
-                            </div>
+    const handleViewChange = (view: View) => {
+        setCurrentPage(1);
+        if (view !== "genre-view") {
+            setSelectedGenreIds([]);
+        }
+        setCurrentView(view);
+        updateViewBackground();
+        setIsGenreOpen(false);
+    };
+
+    const ListingLayout = () => {
+        const isFavView = currentView === "favorites";
+        const items = isFavView ? favorites : displayData;
+
+        let title = "MỚI CẬP NHẬT";
+        let icon = <Calendar className="text-pink-500" size={24} />;
+
+        if (isFavView) {
+            title = "YÊU THÍCH";
+            icon = <Heart className="text-pink-500 fill-pink-500" size={24} />;
+        } else if (currentView === "genre-view") {
+            const names = selectedGenreIds
+                .map((id) => GENRE_MAP.find((g) => g.id === id)?.label)
+                .join(", ");
+            title =
+                selectedGenreIds.length > 0
+                    ? `THỂ LOẠI: ${names}`
+                    : "BỘ LỌC THỂ LOẠI";
+            icon = <LayoutGrid className="text-pink-500" size={24} />;
+        }
+
+        return (
+            <div className="min-h-screen pt-40 pb-24 px-6 md:px-12 relative bg-[#020617]">
+                <div className="fixed inset-0 z-0 opacity-5 pointer-events-none">
+                    <img
+                        src={currentBg}
+                        className="w-full h-full object-cover blur-[100px]"
+                        alt=""
+                    />
+                </div>
+
+                <div className="max-w-7xl mx-auto relative z-10">
+                    <div className="flex flex-col gap-6 mb-16 animate-in fade-in slide-in-from-left-4 duration-700">
+                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                            <button
+                                onClick={() => handleViewChange("home")}
+                                className="hover:text-pink-500 transition-colors"
+                            >
+                                Trang chủ
+                            </button>
+                            <ChevronRight size={12} />
+                            <span className="text-white">{title}</span>
                         </div>
 
-                        {isLoadingRankings ? (
-                            <div className="flex flex-col items-center justify-center py-40 gap-4">
-                                <Loader2
-                                    className="animate-spin text-pink-500"
-                                    size={48}
-                                />
-                                <p className="text-slate-500 font-black uppercase tracking-[0.4em] text-xs">
-                                    Syncing World Rankings...
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-12">
-                                    {topRankings.map((anime, idx) => (
-                                        <AnimeCard
-                                            key={`${anime.id}-${idx}`}
-                                            anime={anime}
-                                            onClick={setSelectedAnime}
-                                            rank={idx + 1}
-                                        />
-                                    ))}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-pink-600/10 flex items-center justify-center border border-pink-500/20 shadow-[0_0_20px_rgba(236,72,153,0.15)]">
+                                    {icon}
                                 </div>
-                                <Pagination />
-                            </>
-                        )}
+                                <h1 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter uppercase leading-none break-words max-w-2xl">
+                                    {title}
+                                </h1>
+                            </div>
+
+                            {isFavView && favorites.length > 0 && (
+                                <button
+                                    onClick={() => {
+                                        if (confirm("Xóa sạch danh sách?"))
+                                            setFavorites([]);
+                                    }}
+                                    className="flex items-center gap-2 px-6 py-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all font-black text-[10px] tracking-widest uppercase border border-red-500/20 active:scale-95"
+                                >
+                                    <Trash2 size={16} /> XÓA TẤT CẢ
+                                </button>
+                            )}
+                        </div>
                     </div>
-                );
-            default:
-                return (
-                    <>
+
+                    {isLoading && !isFavView ? (
+                        <div className="py-40 flex justify-center">
+                            <Loader2
+                                className="animate-spin text-pink-500"
+                                size={48}
+                            />
+                        </div>
+                    ) : items.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                            {items.map((anime) => (
+                                <AnimeCard
+                                    key={anime.mal_id}
+                                    anime={anime}
+                                    onClick={setSelectedAnime}
+                                    isFavorite={isFavorite(anime.mal_id)}
+                                    onToggleFavorite={(e) => {
+                                        e.stopPropagation();
+                                        toggleFavorite(anime);
+                                    }}
+                                />
+                            ))}
+                            {!isFavView && (
+                                <div className="col-span-full pt-12">
+                                    <Pagination
+                                        current={currentPage}
+                                        last={
+                                            paginationInfo?.last_visible_page ||
+                                            1
+                                        }
+                                        onPageChange={setCurrentPage}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="py-40 text-center flex flex-col items-center gap-6">
+                            <Sparkles size={48} className="text-slate-800" />
+                            <p className="text-slate-500 font-bold uppercase tracking-widest">
+                                Không có dữ liệu hiển thị
+                            </p>
+                            <button
+                                onClick={() => handleViewChange("home")}
+                                className="px-10 py-4 bg-pink-600 rounded-xl font-black text-[10px] tracking-widest uppercase hover:bg-pink-500 transition-all active:scale-95 shadow-xl"
+                            >
+                                QUAY LẠI TRANG CHỦ
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const menuItems = [
+        { id: "home", label: "Trang Chủ" },
+        { id: "genre-view", label: "Thể Loại", hasDropdown: true },
+        { id: "latest", label: "Mới Nhất" },
+        { id: "rankings", label: "Xếp Hạng" },
+    ];
+
+    return (
+        <div className="relative min-h-screen bg-[#020617] text-white selection:bg-pink-600/30 overflow-x-hidden">
+            <Particles />
+
+            <nav
+                className={`fixed top-0 inset-x-0 z-[100] transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1) border-b ${
+                    isScrolled
+                        ? "py-4 bg-white/[0.005] backdrop-blur-[80px] border-white/5 shadow-[0_10px_50px_rgba(0,0,0,0.5)]"
+                        : "py-8 bg-transparent border-transparent"
+                }`}
+            >
+                <div className="max-w-[1440px] mx-auto px-6 md:px-12 flex items-center justify-between relative">
+                    <div
+                        onClick={() => handleViewChange("home")}
+                        className="flex items-center gap-4 cursor-pointer group"
+                    >
+                        <div className="relative w-11 h-11 rounded-xl overflow-hidden border-2 border-white/10 group-hover:border-pink-500 transition-all duration-700 shadow-2xl group-hover:scale-110 group-hover:rotate-6">
+                            <img
+                                src="https://i.pinimg.com/1200x/19/59/af/1959af0003b1086a02c1fc7fc461fd68.jpg"
+                                className="w-full h-full object-cover"
+                                alt="Logo"
+                            />
+                            <div className="absolute inset-0 bg-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                        </div>
+                        <div className="flex flex-col leading-none">
+                            <div className="flex items-center gap-2">
+                                <span className="font-anime font-black text-xl tracking-tighter uppercase text-white group-hover:text-pink-500 transition-colors duration-500">
+                                    ANIME
+                                    <span className="text-pink-600 group-hover:text-white transition-colors duration-500">
+                                        TM
+                                    </span>
+                                </span>
+                                <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded text-[7px] font-black text-green-500 tracking-widest uppercase">
+                                    <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />{" "}
+                                    Stable
+                                </div>
+                            </div>
+                            <span className="text-[7px] font-black text-slate-500 tracking-[0.6em] uppercase mt-1 group-hover:translate-x-1 transition-transform duration-500">
+                                Neural Hub V3.0
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="hidden lg:flex items-center gap-1 bg-white/[0.02] p-1 rounded-[2rem] border border-white/5 backdrop-blur-3xl relative overflow-visible group/nav">
+                        {menuItems.map((item) => (
+                            <div
+                                key={item.id}
+                                className="relative group/item"
+                                onMouseEnter={() =>
+                                    item.hasDropdown && setIsGenreOpen(true)
+                                }
+                                onMouseLeave={() =>
+                                    item.hasDropdown && setIsGenreOpen(false)
+                                }
+                            >
+                                <button
+                                    onClick={() =>
+                                        handleViewChange(item.id as View)
+                                    }
+                                    className={`relative px-5 py-2 text-[9px] font-black tracking-widest uppercase transition-all duration-500 rounded-[1.5rem] flex items-center justify-center gap-2 hover:bg-white/[0.03] ${
+                                        currentView === item.id
+                                            ? "text-white bg-pink-600/30 shadow-[0_0_20px_rgba(236,72,153,0.2)]"
+                                            : "text-slate-400 hover:text-white"
+                                    }`}
+                                >
+                                    <span className="relative inline-block">
+                                        {item.label}
+                                        {/* 
+                          Hover line logic: 
+                          - Only show when currentView is NOT this item
+                          - Expand from left to right (origin-left)
+                          - Centered under text
+                        */}
+                                        {currentView !== item.id && (
+                                            <div className="absolute -bottom-1 left-0 h-[1.5px] bg-pink-500 transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) w-0 group-hover/item:w-full shadow-[0_0_8px_rgba(236,72,153,0.5)] opacity-0 group-hover/item:opacity-100 origin-left" />
+                                        )}
+                                        {/* NO line for active item as requested */}
+                                    </span>
+                                    {item.hasDropdown && (
+                                        <ChevronDown
+                                            size={11}
+                                            className={`transition-transform duration-700 ease-out ${
+                                                isGenreOpen ? "rotate-180" : ""
+                                            }`}
+                                        />
+                                    )}
+                                </button>
+
+                                {item.hasDropdown && isGenreOpen && (
+                                    <GenresMegamenu
+                                        selectedGenreIds={selectedGenreIds}
+                                        onToggleGenre={toggleGenre}
+                                        onClear={handleClearGenres}
+                                    />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => handleViewChange("favorites")}
+                            className={`group relative w-11 h-11 rounded-xl flex items-center justify-center border transition-all duration-700 shadow-xl overflow-hidden active:scale-90 ${
+                                currentView === "favorites"
+                                    ? "bg-pink-600 border-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]"
+                                    : "bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-pink-500/50"
+                            }`}
+                        >
+                            <Heart
+                                size={18}
+                                className={`transition-all duration-700 ${
+                                    currentView === "favorites"
+                                        ? "fill-white scale-110"
+                                        : "group-hover:scale-110 group-hover:text-pink-500"
+                                }`}
+                            />
+                            {favorites.length > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-pink-500 text-white rounded-full text-[8px] font-black flex items-center justify-center border-2 border-[#020617] group-hover:animate-bounce">
+                                    {favorites.length}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <main>
+                {currentView === "home" && selectedGenreIds.length === 0 ? (
+                    <div className="animate-in fade-in duration-1000">
                         <Hero
                             onSearch={handleSearch}
                             searchResults={searchResults}
                             isSearching={isSearching}
                             onSelect={setSelectedAnime}
                         />
-
                         <TrendingSection
                             animeList={trendingData}
                             onSelect={setSelectedAnime}
                         />
-
                         <AIAssistant />
-
-                        <section className="py-24 px-4 md:px-12 bg-slate-950">
+                        <section className="py-24 px-6 md:px-12 bg-slate-950/20 relative">
+                            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-pink-500/20 to-transparent" />
                             <div className="max-w-7xl mx-auto">
-                                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
-                                    <div className="flex items-center gap-4">
-                                        <Sparkles className="text-pink-500" />
-                                        <h2 className="text-4xl font-black text-white tracking-tighter uppercase">
-                                            MỚI CẬP NHẬT TRÊN HỆ THỐNG
-                                        </h2>
-                                    </div>
-
-                                    {/* Selected Genres Display */}
-                                    {selectedGenres.length > 0 && (
-                                        <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-right duration-500">
-                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">
-                                                Đang lọc:
-                                            </span>
-                                            {selectedGenres.map((g) => (
-                                                <div
-                                                    key={g}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-600/10 border border-pink-500/20 rounded-lg text-pink-500 text-[10px] font-black uppercase"
-                                                >
-                                                    <Hash size={10} /> {g}
-                                                </div>
-                                            ))}
-                                            <button
-                                                onClick={clearGenres}
-                                                className="ml-2 p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-all"
-                                                title="Xóa lọc"
-                                            >
-                                                <FilterX size={16} />
-                                            </button>
-                                        </div>
-                                    )}
+                                <div className="flex items-center gap-4 mb-16 animate-in slide-in-from-left duration-700">
+                                    <LayoutGrid
+                                        className="text-pink-500 animate-pulse"
+                                        size={24}
+                                    />
+                                    <h2 className="text-4xl font-black uppercase tracking-tight italic text-white">
+                                        Anime Mùa Này
+                                    </h2>
                                 </div>
-
-                                {isLoadingHome ? (
-                                    <div className="flex justify-center py-20">
-                                        <Loader2
-                                            className="animate-spin text-pink-500"
-                                            size={32}
-                                        />
-                                    </div>
-                                ) : (
-                                    <>
-                                        {filteredRecentData.length > 0 ? (
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-12">
-                                                {filteredRecentData.map(
-                                                    (anime) => (
-                                                        <AnimeCard
-                                                            key={anime.id}
-                                                            anime={anime}
-                                                            onClick={
-                                                                setSelectedAnime
-                                                            }
-                                                        />
-                                                    )
-                                                )}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-12">
+                                    {displayData
+                                        .slice(0, 12)
+                                        .map((anime, idx) => (
+                                            <div
+                                                key={anime.mal_id}
+                                                className="animate-in fade-in zoom-in-95 duration-700"
+                                                style={{
+                                                    animationDelay: `${
+                                                        idx * 50
+                                                    }ms`,
+                                                }}
+                                            >
+                                                <AnimeCard
+                                                    anime={anime}
+                                                    onClick={setSelectedAnime}
+                                                    isFavorite={isFavorite(
+                                                        anime.mal_id
+                                                    )}
+                                                    onToggleFavorite={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleFavorite(anime);
+                                                    }}
+                                                />
                                             </div>
-                                        ) : (
-                                            <div className="py-32 flex flex-col items-center justify-center text-center">
-                                                <div className="w-20 h-20 bg-slate-900 rounded-3xl flex items-center justify-center mb-6 border border-white/5">
-                                                    <FilterX
-                                                        size={32}
-                                                        className="text-slate-600"
-                                                    />
-                                                </div>
-                                                <h3 className="text-xl font-black text-white uppercase tracking-widest mb-2">
-                                                    Không có kết quả
-                                                </h3>
-                                                <p className="text-slate-500 text-sm font-bold uppercase tracking-widest max-w-xs">
-                                                    Thử bỏ bớt thể loại để tìm
-                                                    thấy nhiều anime hơn.
-                                                </p>
-                                                <button
-                                                    onClick={clearGenres}
-                                                    className="mt-8 px-8 py-3 bg-pink-600 hover:bg-pink-500 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl shadow-lg transition-all active:scale-95"
-                                                >
-                                                    Xóa Tất Cả Bộ Lọc
-                                                </button>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                                {!isLoadingHome &&
-                                    filteredRecentData.length > 5 && (
-                                        <Pagination />
-                                    )}
+                                        ))}
+                                </div>
+                                <div className="mt-20 flex justify-center">
+                                    <button
+                                        onClick={() =>
+                                            handleViewChange("latest")
+                                        }
+                                        className="group relative px-16 py-5 bg-white/5 border border-white/10 rounded-2xl font-black text-[10px] tracking-widest uppercase hover:bg-pink-600 hover:border-pink-500 transition-all shadow-2xl overflow-hidden active:scale-95"
+                                    >
+                                        <span className="relative z-10 flex items-center gap-4">
+                                            KHÁM PHÁ THÊM{" "}
+                                            <ChevronRight
+                                                size={14}
+                                                className="group-hover:translate-x-2 transition-transform"
+                                            />
+                                        </span>
+                                        <div className="absolute inset-0 bg-gradient-to-r from-pink-600/20 to-purple-600/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                                    </button>
+                                </div>
                             </div>
                         </section>
-                    </>
-                );
-        }
-    };
-
-    return (
-        <div className="relative min-h-screen bg-[#020617] text-white selection:bg-pink-500/30">
-            <Particles />
-
-            <div
-                className={`fixed top-0 left-0 h-1 bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 z-[201] transition-all duration-500 ease-in-out ${
-                    isSearching || isLoadingRankings || isLoadingHome
-                        ? "w-full opacity-100"
-                        : "w-0 opacity-0"
-                }`}
-            />
-
-            <nav className="fixed top-0 inset-x-0 z-[100] px-8 py-6 flex items-center justify-between pointer-events-none">
-                <div
-                    onClick={() => {
-                        setCurrentView("home");
-                        clearGenres();
-                    }}
-                    className="font-anime text-2xl font-black text-white cursor-pointer pointer-events-auto flex items-center gap-4 group"
-                >
-                    <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-2xl group-hover:rotate-6 group-hover:scale-110 transition-all duration-500 border border-white/20 bg-slate-800">
-                        <img
-                            src="https://i.pinimg.com/1200x/19/59/af/1959af0003b1086a02c1fc7fc461fd68.jpg"
-                            className="w-full h-full object-cover"
-                            alt="Logo"
-                        />
                     </div>
-                    <span className="tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-pink-500 font-black uppercase text-2xl">
-                        ANIME TM
-                    </span>
-                </div>
-
-                <div className="hidden md:flex items-center gap-2 glass p-1.5 rounded-2xl border border-white/10 pointer-events-auto shadow-2xl">
-                    <button
-                        onClick={() => setCurrentView("home")}
-                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${
-                            currentView === "home"
-                                ? "bg-white/10 text-white shadow-inner"
-                                : "text-slate-400 hover:text-white"
-                        }`}
-                    >
-                        TRANG CHỦ
-                    </button>
-                    <div
-                        className="relative group"
-                        onMouseEnter={() => setIsGenreOpen(true)}
-                        onMouseLeave={() => setIsGenreOpen(false)}
-                    >
-                        <button
-                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest flex items-center gap-2 ${
-                                selectedGenres.length > 0
-                                    ? "text-pink-500"
-                                    : "text-slate-400 hover:text-white"
-                            }`}
-                        >
-                            THỂ LOẠI{" "}
-                            {selectedGenres.length > 0 &&
-                                `(${selectedGenres.length})`}{" "}
-                            <ChevronDown
-                                size={14}
-                                className={`transition-transform duration-300 ${
-                                    isGenreOpen ? "rotate-180" : ""
-                                }`}
-                            />
-                        </button>
-                        {isGenreOpen && (
-                            <GenresMegamenu
-                                selectedGenres={selectedGenres}
-                                onToggleGenre={toggleGenre}
-                                onClear={clearGenres}
-                            />
-                        )}
-                    </div>
-                    <button
-                        onClick={() => setCurrentView("library")}
-                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${
-                            currentView === "library"
-                                ? "bg-white/10 text-white"
-                                : "text-slate-400 hover:text-white"
-                        }`}
-                    >
-                        KHÁM PHÁ
-                    </button>
-                    <button
-                        onClick={() => setCurrentView("rankings")}
-                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${
-                            currentView === "rankings"
-                                ? "bg-white/10 text-white"
-                                : "text-slate-400 hover:text-white"
-                        }`}
-                    >
-                        XẾP HẠNG
-                    </button>
-                </div>
-
-                <div className="flex items-center gap-4 pointer-events-auto">
-                    <button className="w-12 h-12 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-center hover:bg-pink-600 transition-all shadow-xl group">
-                        <Heart
-                            size={20}
-                            className="text-slate-400 group-hover:text-white"
-                        />
-                    </button>
-                </div>
-            </nav>
-
-            <main>{renderView()}</main>
+                ) : currentView === "rankings" ? (
+                    <Leaderboard onSelect={setSelectedAnime} />
+                ) : (
+                    <ListingLayout />
+                )}
+            </main>
 
             {selectedAnime && (
                 <AnimeDetails
                     anime={selectedAnime}
                     onClose={() => setSelectedAnime(null)}
+                    isFavorite={isFavorite(selectedAnime.mal_id)}
+                    onToggleFavorite={() => toggleFavorite(selectedAnime)}
                 />
             )}
 
-            <footer className="py-24 px-8 bg-slate-950 border-t border-white/5">
-                <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
-                    <div className="col-span-1 md:col-span-2">
-                        <h3 className="text-3xl font-black mb-6 uppercase text-white tracking-tighter">
-                            ANIME<span className="text-pink-600">TM</span>
-                        </h3>
-                        <p className="text-slate-500 max-w-sm mb-8 leading-relaxed font-bold uppercase text-[11px] tracking-widest">
-                            Hub tìm kiếm và gợi ý Anime thông minh. Chúng tôi
-                            không lưu trữ nội dung, chỉ hỗ trợ kết nối bạn đến
-                            những nền tảng xem phim tốt nhất như AnimeVietSub.
-                        </p>
+            <MusicPlayer />
+            <footer className="py-20 px-12 bg-[#010409] border-t border-white/5 relative overflow-hidden">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-pink-500/10 to-transparent" />
+                <div className="max-w-7xl mx-auto flex flex-col items-center">
+                    <div className="font-anime font-black text-3xl tracking-tighter uppercase mb-6">
+                        ANIME<span className="text-pink-600">TM</span>
                     </div>
-                    <div>
-                        <h4 className="font-black mb-6 tracking-widest uppercase text-[10px] text-pink-500">
-                            Quick Links
-                        </h4>
-                        <ul className="space-y-4 text-slate-400 font-bold text-[10px] tracking-widest uppercase">
-                            <li>
-                                <button
-                                    onClick={() => setCurrentView("home")}
-                                    className="hover:text-white"
-                                >
-                                    Trang chủ
-                                </button>
-                            </li>
-                            <li>
-                                <button
-                                    onClick={() => setCurrentView("rankings")}
-                                    className="hover:text-white"
-                                >
-                                    Bảng xếp hạng
-                                </button>
-                            </li>
-                        </ul>
+                    <div className="text-slate-600 font-black text-[9px] tracking-[0.8em] uppercase mb-12 text-center max-w-lg">
+                        Neural Analytics & Entertainment Hub Synchronized with
+                        Global Jikan Network
                     </div>
-                    <div>
-                        <h4 className="font-black mb-6 tracking-widest uppercase text-[10px] text-pink-500">
-                            Support
-                        </h4>
-                        <ul className="space-y-4 text-slate-400 font-bold text-[10px] tracking-widest uppercase">
-                            <li>
-                                <a href="#" className="hover:text-white">
-                                    Báo lỗi dữ liệu
-                                </a>
-                            </li>
-                            <li>
-                                <a href="#" className="hover:text-white">
-                                    DMCA Policy
-                                </a>
-                            </li>
-                        </ul>
+                    <div className="flex gap-8 text-slate-500 text-[10px] font-black tracking-widest uppercase mb-16">
+                        <button
+                            onClick={() => handleViewChange("home")}
+                            className="hover:text-pink-500 transition-colors"
+                        >
+                            Home
+                        </button>
+                        <button
+                            onClick={() => handleViewChange("latest")}
+                            className="hover:text-pink-500 transition-colors"
+                        >
+                            Latest
+                        </button>
+                        <button
+                            onClick={() => handleViewChange("rankings")}
+                            className="hover:text-pink-500 transition-colors"
+                        >
+                            Rankings
+                        </button>
                     </div>
-                </div>
-                <div className="max-w-7xl mx-auto mt-16 pt-8 border-t border-white/5 text-center text-slate-700 text-[9px] font-black tracking-[0.5em] uppercase">
-                    © 2024 ANIME_TM_DASHBOARD • POWERED BY AI SENSEI
+                    <div className="text-slate-800 font-black text-[9px] tracking-[1em] uppercase">
+                        © 2024 ANIME_TM_NETWORK • POWERED BY SENSEI AI
+                    </div>
                 </div>
             </footer>
-
-            <MusicPlayer />
         </div>
     );
 };

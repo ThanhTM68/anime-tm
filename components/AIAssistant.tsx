@@ -72,18 +72,21 @@ const AIAssistant: React.FC = () => {
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         
         {/* Visual Novel Avatar Side */}
-        <div className="relative group flex justify-center lg:justify-start order-2 lg:order-1 cursor-pointer">
-          {/* Ambient Glow - Intensifies on group hover */}
-          <div className={`absolute -inset-8 bg-gradient-to-r from-pink-500/10 to-purple-500/10 blur-[80px] transition-all duration-1000 ${isLoading ? 'animate-think-glow opacity-80' : 'opacity-40 group-hover:opacity-100 group-hover:from-pink-500/30 group-hover:to-purple-500/30 group-hover:blur-[100px]'}`} />
+        <div className="relative group flex justify-center lg:justify-start order-2 lg:order-1 cursor-pointer perspective-1000">
+          {/* Ambient Glow - Intensifies on group hover with enhanced bloom */}
+          <div className={`absolute -inset-12 bg-gradient-to-r from-pink-500/20 to-purple-500/20 blur-[100px] transition-all duration-700 ${isLoading ? 'animate-think-glow opacity-100' : 'opacity-30 group-hover:opacity-100 group-hover:from-pink-500/40 group-hover:to-purple-500/40 group-hover:blur-[140px]'}`} />
           
-          {/* Avatar Container - Scales up slightly on group hover */}
-          <div className="relative w-full max-w-sm aspect-[3/4] rounded-3xl overflow-hidden border border-white/5 shadow-2xl animate-subtle-float transition-transform duration-500 group-hover:scale-[1.03]">
+          {/* Avatar Container - Enhanced 3D-like hover effect */}
+          <div className="relative w-full max-w-sm aspect-[3/4] rounded-3xl overflow-hidden border border-white/5 shadow-2xl animate-subtle-float transition-all duration-700 ease-out group-hover:scale-[1.06] group-hover:rotate-1 group-hover:shadow-[0_0_60px_rgba(236,72,153,0.25)]">
             <img 
               src="https://images.unsplash.com/photo-1578632292335-df3abbb0d586?auto=format&fit=crop&q=80&w=800" 
               alt="AI Assistant"
-              className={`w-full h-full object-cover grayscale-[15%] transition-all duration-1000 animate-breathing ${isLoading ? 'scale-105 saturate-[1.1] grayscale-0' : 'group-hover:grayscale-0 group-hover:saturate-110'}`}
+              className={`w-full h-full object-cover grayscale-[15%] transition-all duration-1000 animate-breathing ${isLoading ? 'scale-105 saturate-[1.1] grayscale-0' : 'group-hover:grayscale-0 group-hover:saturate-125'}`}
             />
             
+            {/* Glossy overlay effect on hover */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+
             {/* Blinking Layer */}
             <div className="absolute inset-0 bg-slate-900 origin-top pointer-events-none z-10 animate-blink opacity-40" />
 
@@ -95,11 +98,11 @@ const AIAssistant: React.FC = () => {
             )}
 
             {/* Content Overlays */}
-            <div className="absolute bottom-0 inset-x-0 p-8 bg-gradient-to-t from-slate-950 to-transparent z-30">
-              <div className="bg-pink-500/80 inline-block px-4 py-1 rounded-sm text-xs font-black tracking-[0.2em] mb-2 shadow-lg transition-transform duration-500 group-hover:-translate-y-1">
+            <div className="absolute bottom-0 inset-x-0 p-8 bg-gradient-to-t from-slate-950/90 to-transparent z-30">
+              <div className="bg-pink-500/80 inline-block px-4 py-1 rounded-sm text-xs font-black tracking-[0.2em] mb-2 shadow-lg transition-transform duration-700 group-hover:-translate-y-2">
                 SENSEI-AI
               </div>
-              <div className="flex items-center gap-2 text-white/80 text-[10px] font-black tracking-widest uppercase transition-transform duration-500 group-hover:-translate-y-1">
+              <div className="flex items-center gap-2 text-white/80 text-[10px] font-black tracking-widest uppercase transition-transform duration-700 group-hover:-translate-y-2">
                 <span className={`w-2 h-2 rounded-full ${isLoading ? 'bg-pink-400 animate-ping' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]'}`} />
                 {isLoading ? 'Processing Matrices...' : 'Link Stable'}
               </div>
