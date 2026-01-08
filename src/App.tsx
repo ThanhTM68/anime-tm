@@ -358,7 +358,7 @@ const App: React.FC = () => {
                                 </div>
                             </div>
                             <span className="text-[7px] font-black text-slate-500 tracking-[0.6em] uppercase mt-1 group-hover:translate-x-1 transition-transform duration-500">
-                                Neural Hub V3.0
+                                ANIME TM V1.0
                             </span>
                         </div>
                     </div>
@@ -543,31 +543,37 @@ const App: React.FC = () => {
                         ANIME<span className="text-pink-600">TM</span>
                     </div>
                     <div className="text-slate-600 font-black text-[9px] tracking-[0.8em] uppercase mb-12 text-center max-w-lg">
-                        Neural Analytics & Entertainment Hub Synchronized with
-                        Global Jikan Network
+                        Nếu hiện thực quá mệt mỏi, hãy để Anime chữa lành tâm
+                        hồn bạn.
                     </div>
                     <div className="flex gap-8 text-slate-500 text-[10px] font-black tracking-widest uppercase mb-16">
                         <button
                             onClick={() => handleViewChange("home")}
                             className="hover:text-pink-500 transition-colors"
                         >
-                            Home
+                            Trang Chủ
+                        </button>
+                        <button
+                            onClick={() => handleViewChange("genre-view")}
+                            className="hover:text-pink-500 transition-colors"
+                        >
+                            Thể Loại
                         </button>
                         <button
                             onClick={() => handleViewChange("latest")}
                             className="hover:text-pink-500 transition-colors"
                         >
-                            Latest
+                            Mới Nhất
                         </button>
                         <button
                             onClick={() => handleViewChange("rankings")}
                             className="hover:text-pink-500 transition-colors"
                         >
-                            Rankings
+                            Xếp Hạng
                         </button>
                     </div>
                     <div className="text-slate-800 font-black text-[9px] tracking-[1em] uppercase">
-                        © 2024 ANIME_TM_NETWORK • POWERED BY SENSEI AI
+                        © 2024 ANIME TM NETWORK • BY ThanhTM68
                     </div>
                 </div>
             </footer>

@@ -161,7 +161,7 @@ export async function analyzeAnime(animeTitle: string): Promise<string> {
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
-            model: "gemini-3-pro-preview",
+            model: "gemini-2.5-flash",
             contents: `Phân tích chuyên sâu (tiếng Việt): ${animeTitle}`,
             config: {
                 systemInstruction:
