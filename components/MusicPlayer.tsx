@@ -167,10 +167,11 @@ const MusicPlayer: React.FC = () => {
                 <div className="absolute inset-0 bg-gradient-to-tr from-pink-600/40 to-purple-600/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                 <Music
-                    className={`relative z-10 transition-transform duration-[4000ms] linear infinite ${
+                    // Sửa ở đây: Dùng animate-[spin_4s_linear_infinite] để quay vô tận
+                    className={`relative z-10 transition-all duration-500 ${
                         isPlaying
-                            ? "rotate-[360deg] scale-110 text-white"
-                            : "group-hover:rotate-12 text-slate-400"
+                            ? "animate-[spin_4s_linear_infinite] text-white scale-110" // Đang phát: Quay đều trong 4s/vòng
+                            : "text-slate-400 group-hover:rotate-12" // Tắt: Dừng lại và về màu xám
                     }`}
                     size={22}
                 />
