@@ -11,6 +11,7 @@ import {
 
 const BASE_URL = import.meta.env.BASE_URL;
 
+// cspell:disable
 // Danh sách bài hát
 const PLAYLIST = [
     {
@@ -53,6 +54,8 @@ const MusicPlayer: React.FC = () => {
                     console.log("Trình duyệt chặn tự phát:", err);
                     setIsPlaying(false); // Nếu bị chặn thì tắt trạng thái play
                 });
+            } else {
+                audioRef.current.pause();
             }
         }
     }, [currentTrack, isPlaying]);
@@ -167,11 +170,11 @@ const MusicPlayer: React.FC = () => {
                 <div className="absolute inset-0 bg-gradient-to-tr from-pink-600/40 to-purple-600/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                 <Music
-                    // Sửa ở đây: Dùng animate-[spin_4s_linear_infinite] để quay vô tận
+                    style={{ animationDuration: isPlaying ? "4s" : "0s" }}
                     className={`relative z-10 transition-all duration-500 ${
                         isPlaying
-                            ? "animate-[spin_4s_linear_infinite] text-white scale-110" // Đang phát: Quay đều trong 4s/vòng
-                            : "text-slate-400 group-hover:rotate-12" // Tắt: Dừng lại và về màu xám
+                            ? "animate-spin text-white scale-110"
+                            : "text-slate-400 group-hover:rotate-12"
                     }`}
                     size={22}
                 />
