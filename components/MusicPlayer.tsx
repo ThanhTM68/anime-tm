@@ -33,10 +33,6 @@ const PLAYLIST = [
         src: `${BASE_URL}music/bai5.mp3`,
         name: "DAOKO",
     },
-    {
-        src: `${BASE_URL}music/bai6.mp3`,
-        name: "Ghibli Relaxing Music",
-    },
     // Thêm bài khác nếu có...
 ];
 
